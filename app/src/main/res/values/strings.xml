@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">GoogleSignAppFirebase</string>
-    <string name="web_client_id">1762664968429-c0mlqlb70agm0rlcqrs4hr6imjkcr5hu.apps.googleusercontent.com</string>
+    <string name="web_client_id">762664968429-c0mlqlb70agm0rlcqrs4hr6imjkcr5hu.apps.googleusercontent.com</string>
     <string name="title_activity_main2">MainActivity2</string>
 </resources>
