@@ -24,15 +24,27 @@ import androidx.credentials.exceptions.GetCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import su.afk.googlesignappfirebase.ui.theme.GoogleSignAppFirebaseTheme
 import java.security.MessageDigest
 import java.util.UUID
 
 class MainActivity2 : ComponentActivity() {
+    private lateinit var auth: FirebaseAuth
+    private lateinit var db: FirebaseFirestore
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        FirebaseApp.initializeApp(this)  // Инициализация Firebase
+        auth = FirebaseAuth.getInstance()
+        db = FirebaseFirestore.getInstance()
+
         setContent {
             GoogleSignAppFirebaseTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -40,7 +52,7 @@ class MainActivity2 : ComponentActivity() {
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        GoogleSingInButton()
+                        GoogleSingInButton(auth, db)
                     }
                 }
             }
@@ -50,6 +62,8 @@ class MainActivity2 : ComponentActivity() {
 
 @Composable
 fun GoogleSingInButton(
+    auth: FirebaseAuth,
+    db: FirebaseFirestore,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -90,8 +104,34 @@ fun GoogleSingInButton(
                 val googleIdToken = googleIdTokenCredential.idToken
 
                 Log.d("TAG", "$googleIdToken")
+//                Toast.makeText(context, "Вход успешен", Toast.LENGTH_LONG).show()
+                // Аутентификация пользователя в Firebase
+                val firebaseCredential = GoogleAuthProvider.getCredential(googleIdToken, null)
+                auth.signInWithCredential(firebaseCredential).addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        // Получаем информацию о пользователе
+                        val user = auth.currentUser
+                        val userData = hashMapOf(
+                            "uid" to user?.uid,
+                            "name" to user?.displayName,
+                            "email" to user?.email,
+                            "photoUrl" to user?.photoUrl
+                        )
 
-                Toast.makeText(context, "Вход успешен", Toast.LENGTH_LONG).show()
+                        // Сохраняем информацию о пользователе в Firestore
+                        db.collection("users").document(user?.uid ?: "").set(userData)
+                            .addOnSuccessListener {
+                                Toast.makeText(context, "Пользователь сохранен", Toast.LENGTH_LONG).show()
+                            }
+                            .addOnFailureListener { e ->
+                                Toast.makeText(context, "Ошибка сохранения: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
+
+                        Toast.makeText(context, "Вход успешен", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Ошибка аутентификации", Toast.LENGTH_LONG).show()
+                    }
+                }
             } catch (e: GetCredentialException) {
                 Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
             } catch (e: GoogleIdTokenParsingException) {
